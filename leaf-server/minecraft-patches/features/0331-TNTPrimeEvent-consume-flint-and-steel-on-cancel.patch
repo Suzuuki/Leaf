@@ -1,0 +1,42 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Suzuuki <kotick.pvp@gmail.com>
+Date: Sat, 30 May 2026 20:38:05 +0200
+Subject: [PATCH] TNTPrimeEvent consume flint and steel on cancel
+
+
+diff --git a/net/minecraft/world/level/block/TntBlock.java b/net/minecraft/world/level/block/TntBlock.java
+index 00da328f21e5ce5de6f968323b14a7832a6cbd62..b7ba16bd9ba7a24628703ac486eabbfa6bb4977c 100644
+--- a/net/minecraft/world/level/block/TntBlock.java
++++ b/net/minecraft/world/level/block/TntBlock.java
+@@ -107,21 +107,21 @@ public class TntBlock extends Block {
+         if (!stack.is(Items.FLINT_AND_STEEL) && !stack.is(Items.FIRE_CHARGE)) {
+             return super.useItemOn(stack, state, level, pos, player, hand, hitResult);
+         } else {
+-            if (prime(level, pos, player, () -> org.bukkit.craftbukkit.event.CraftEventFactory.callTNTPrimeEvent(level, pos, org.bukkit.event.block.TNTPrimeEvent.PrimeCause.PLAYER, player, null))) { // Paper
++            boolean primed = prime(level, pos, player, () -> org.bukkit.craftbukkit.event.CraftEventFactory.callTNTPrimeEvent(level, pos, org.bukkit.event.block.TNTPrimeEvent.PrimeCause.PLAYER, player, null)); // Paper
++            if (primed) {
+                 level.setBlock(pos, Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL_IMMEDIATE);
+-                Item item = stack.getItem();
+-                if (stack.is(Items.FLINT_AND_STEEL)) {
+-                    stack.hurtAndBreak(1, player, hand.asEquipmentSlot());
+-                } else {
+-                    stack.consume(1, player);
+-                }
+-
+-                player.awardStat(Stats.ITEM_USED.get(item));
+             } else if (level instanceof ServerLevel serverLevel && !serverLevel.getGameRules().get(GameRules.TNT_EXPLODES)) {
+                 player.displayClientMessage(Component.translatable("block.minecraft.tnt.disabled"), true);
+                 return InteractionResult.PASS;
+             }
+-
++            // Purpur fork - consume flint+steel / fire-charge even when TNTPrimeEvent was cancelled
++            Item item = stack.getItem();
++            if (stack.is(Items.FLINT_AND_STEEL)) {
++                stack.hurtAndBreak(1, player, hand.asEquipmentSlot());
++            } else {
++                stack.consume(1, player);
++            }
++            player.awardStat(Stats.ITEM_USED.get(item));
+             return InteractionResult.SUCCESS;
+         }
+     }

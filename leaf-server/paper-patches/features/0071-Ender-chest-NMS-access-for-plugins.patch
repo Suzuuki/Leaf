@@ -1,0 +1,19 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Suzuuki <kotick.pvp@gmail.com>
+Date: Sat, 30 May 2026 20:38:13 +0200
+Subject: [PATCH] Ender chest NMS access for plugins
+
+
+diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftHumanEntity.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftHumanEntity.java
+index e24eb67ad0742ac6116e7a5b84998db61dc0fc93..5ded78692cb9519e7e26fc0e02c0f07c4a6077c1 100644
+--- a/src/main/java/org/bukkit/craftbukkit/entity/CraftHumanEntity.java
++++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftHumanEntity.java
+@@ -78,7 +78,7 @@ import org.jetbrains.annotations.Nullable;
+ public class CraftHumanEntity extends CraftLivingEntity implements HumanEntity {
+ 
+     private CraftInventoryPlayer inventory;
+-    private final CraftInventory enderChest;
++    public CraftInventory enderChest; // Purpur fork - public, non-final for NMS plugins (EnderChestSynchronizer)
+     protected final PermissibleBase perm = new PermissibleBase(this);
+     private boolean op;
+     private GameMode mode;

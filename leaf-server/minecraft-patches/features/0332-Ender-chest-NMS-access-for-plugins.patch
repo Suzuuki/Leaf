@@ -1,0 +1,104 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Suzuuki <kotick.pvp@gmail.com>
+Date: Sat, 30 May 2026 20:38:11 +0200
+Subject: [PATCH] Ender chest NMS access for plugins
+
+
+diff --git a/net/minecraft/world/entity/player/Player.java b/net/minecraft/world/entity/player/Player.java
+index 7666dd481eeeb1a541281f49f057ec9eb6461033..6423160a3316b6135db57d2430ca8cc478232253 100644
+--- a/net/minecraft/world/entity/player/Player.java
++++ b/net/minecraft/world/entity/player/Player.java
+@@ -151,7 +151,7 @@ public abstract class Player extends Avatar implements ContainerUser {
+     private static final int DEFAULT_CURRENT_IMPULSE_CONTEXT_RESET_GRACE_TIME = 0;
+     public static final float CREATIVE_ENTITY_INTERACTION_RANGE_MODIFIER_VALUE = 2.0F;
+     final Inventory inventory;
+-    protected PlayerEnderChestContainer enderChestInventory = new PlayerEnderChestContainer(this); // CraftBukkit - add "this" to constructor
++    public PlayerEnderChestContainer enderChestInventory = new PlayerEnderChestContainer(this); // CraftBukkit - add "this" to constructor // Purpur fork - public for NMS plugins (EnderChestSynchronizer)
+     public final InventoryMenu inventoryMenu;
+     public AbstractContainerMenu containerMenu;
+     protected FoodData foodData = new FoodData();
+diff --git a/net/minecraft/world/inventory/PlayerEnderChestContainer.java b/net/minecraft/world/inventory/PlayerEnderChestContainer.java
+index 1ef8696003e62af8dfd59340dd9cce76920b45f6..cbeeca6483af5604681194f5d57272058e1436e1 100644
+--- a/net/minecraft/world/inventory/PlayerEnderChestContainer.java
++++ b/net/minecraft/world/inventory/PlayerEnderChestContainer.java
+@@ -31,6 +31,12 @@ public class PlayerEnderChestContainer extends SimpleContainer {
+         // CraftBukkit end
+     }
+ 
++    // Purpur fork - custom-size constructor for NMS plugins (EnderChestSynchronizer)
++    public PlayerEnderChestContainer(Player owner, int size) {
++        super(size);
++        this.owner = owner;
++    }
++
+     // Purpur start - Barrels and enderchests 6 rows
+     @Override
+     public int getContainerSize() {
+diff --git a/net/minecraft/world/level/block/EnderChestBlock.java b/net/minecraft/world/level/block/EnderChestBlock.java
+index 077edf449d4faa41abafb94ac41dfe822f449d04..f4222c31667aaa5031ecff76027fbcf08e847b74 100644
+--- a/net/minecraft/world/level/block/EnderChestBlock.java
++++ b/net/minecraft/world/level/block/EnderChestBlock.java
+@@ -85,8 +85,8 @@ public class EnderChestBlock extends AbstractChestBlock<EnderChestBlockEntity> i
+                 enderChestInventory.setActiveChest(enderChestBlockEntity); // Needs to happen before ChestMenu.threeRows as it is required for opening animations
+                 if (level instanceof ServerLevel serverLevel && player.openMenu(
+                     new SimpleMenuProvider(
+-                        (containerId, playerInventory, player1) -> org.purpurmc.purpur.PurpurConfig.enderChestSixRows ? getEnderChestSixRows(containerId, playerInventory, player, enderChestInventory) : ChestMenu.threeRows(containerId, playerInventory, enderChestInventory), CONTAINER_TITLE
+-                    ) // Purpur - Barrels and enderchests 6 rows
++                        (containerId, playerInventory, player1) -> openEnderChestMenu(containerId, playerInventory, player, enderChestInventory), CONTAINER_TITLE
++                    ) // Purpur fork - dispatch by container size to support NMS plugins (EnderChestSynchronizer)
+                 ).isPresent()) {
+                 // Paper end - Fix InventoryOpenEvent cancellation - moved up;
+                     player.awardStat(Stats.OPEN_ENDERCHEST);
+@@ -101,31 +101,29 @@ public class EnderChestBlock extends AbstractChestBlock<EnderChestBlockEntity> i
+     }
+ 
+     // Purpur start - Barrels and enderchests 6 rows
+-    private ChestMenu getEnderChestSixRows(int syncId, net.minecraft.world.entity.player.Inventory inventory, Player player, PlayerEnderChestContainer playerEnderChestContainer) {
+-        if (org.purpurmc.purpur.PurpurConfig.enderChestPermissionRows) {
++    // Purpur fork - dispatch by container size; honor Purpur permission-based sizing first
++    private ChestMenu openEnderChestMenu(int syncId, net.minecraft.world.entity.player.Inventory inventory, Player player, PlayerEnderChestContainer playerEnderChestContainer) {
++        if (org.purpurmc.purpur.PurpurConfig.enderChestSixRows && org.purpurmc.purpur.PurpurConfig.enderChestPermissionRows) {
+             org.bukkit.craftbukkit.entity.CraftHumanEntity bukkitPlayer = player.getBukkitEntity();
+-            if (bukkitPlayer.hasPermission("purpur.enderchest.rows.six")) {
+-                player.sixRowEnderchestSlotCount = 54;
+-                return ChestMenu.sixRows(syncId, inventory, playerEnderChestContainer);
+-            } else if (bukkitPlayer.hasPermission("purpur.enderchest.rows.five")) {
+-                player.sixRowEnderchestSlotCount = 45;
+-                return ChestMenu.fiveRows(syncId, inventory, playerEnderChestContainer);
+-            } else if (bukkitPlayer.hasPermission("purpur.enderchest.rows.four")) {
+-                player.sixRowEnderchestSlotCount = 36;
+-                return ChestMenu.fourRows(syncId, inventory, playerEnderChestContainer);
+-            } else if (bukkitPlayer.hasPermission("purpur.enderchest.rows.three")) {
+-                player.sixRowEnderchestSlotCount = 27;
+-                return ChestMenu.threeRows(syncId, inventory, playerEnderChestContainer);
+-            } else if (bukkitPlayer.hasPermission("purpur.enderchest.rows.two")) {
+-                player.sixRowEnderchestSlotCount = 18;
+-                return ChestMenu.twoRows(syncId, inventory, playerEnderChestContainer);
+-            } else if (bukkitPlayer.hasPermission("purpur.enderchest.rows.one")) {
+-                player.sixRowEnderchestSlotCount = 9;
+-                return ChestMenu.oneRow(syncId, inventory, playerEnderChestContainer);
+-            }
++            if (bukkitPlayer.hasPermission("purpur.enderchest.rows.six")) player.sixRowEnderchestSlotCount = 54;
++            else if (bukkitPlayer.hasPermission("purpur.enderchest.rows.five")) player.sixRowEnderchestSlotCount = 45;
++            else if (bukkitPlayer.hasPermission("purpur.enderchest.rows.four")) player.sixRowEnderchestSlotCount = 36;
++            else if (bukkitPlayer.hasPermission("purpur.enderchest.rows.three")) player.sixRowEnderchestSlotCount = 27;
++            else if (bukkitPlayer.hasPermission("purpur.enderchest.rows.two")) player.sixRowEnderchestSlotCount = 18;
++            else if (bukkitPlayer.hasPermission("purpur.enderchest.rows.one")) player.sixRowEnderchestSlotCount = 9;
++            else player.sixRowEnderchestSlotCount = -1;
++        } else {
++            player.sixRowEnderchestSlotCount = -1;
+         }
+-        player.sixRowEnderchestSlotCount = -1;
+-        return ChestMenu.sixRows(syncId, inventory, playerEnderChestContainer);
++        int rows = Math.max(1, Math.min(6, playerEnderChestContainer.getContainerSize() / 9));
++        return switch (rows) {
++            case 1 -> ChestMenu.oneRow(syncId, inventory, playerEnderChestContainer);
++            case 2 -> ChestMenu.twoRows(syncId, inventory, playerEnderChestContainer);
++            case 3 -> ChestMenu.threeRows(syncId, inventory, playerEnderChestContainer);
++            case 4 -> ChestMenu.fourRows(syncId, inventory, playerEnderChestContainer);
++            case 5 -> ChestMenu.fiveRows(syncId, inventory, playerEnderChestContainer);
++            default -> ChestMenu.sixRows(syncId, inventory, playerEnderChestContainer);
++        };
+     }
+     // Purpur end - Barrels and enderchests 6 rows
+ 

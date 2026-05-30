@@ -1,0 +1,57 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Suzuuki <kotick.pvp@gmail.com>
+Date: Sat, 30 May 2026 20:38:00 +0200
+Subject: [PATCH] Per-enchantment anvil extra levels config
+
+
+diff --git a/net/minecraft/world/inventory/AnvilMenu.java b/net/minecraft/world/inventory/AnvilMenu.java
+index b790b9476ec0a0569470d5de4067caa5373b2f6b..687e716ce11c44e40ec36bc252cdfacf493ada19 100644
+--- a/net/minecraft/world/inventory/AnvilMenu.java
++++ b/net/minecraft/world/inventory/AnvilMenu.java
+@@ -246,8 +246,9 @@ public class AnvilMenu extends ItemCombinerMenu {
+                             flag1 = true;
+                         } else {
+                             flag = true;
+-                            if (!org.purpurmc.purpur.PurpurConfig.allowHigherEnchantsLevels && intValue > enchantment.getMaxLevel() && !this.bypassEnchantmentLevelRestriction) { // Paper - bypass anvil level restrictions // Purpur - Config to allow unsafe enchants
+-                                intValue = enchantment.getMaxLevel();
++                            int anvilMaxLevel = org.purpurmc.purpur.PurpurConfig.getAnvilMaxLevel(holder, enchantment.getMaxLevel()); // Purpur fork - per-enchant extra anvil levels
++                            if (!org.purpurmc.purpur.PurpurConfig.allowHigherEnchantsLevels && intValue > anvilMaxLevel && !this.bypassEnchantmentLevelRestriction) { // Paper - bypass anvil level restrictions // Purpur - Config to allow unsafe enchants // Purpur fork - per-enchant extra anvil levels
++                                intValue = anvilMaxLevel; // Purpur fork - per-enchant extra anvil levels
+                             }
+ 
+                             mutable.set(holder, intValue);
+diff --git a/org/purpurmc/purpur/PurpurConfig.java b/org/purpurmc/purpur/PurpurConfig.java
+index 8c8d56067a7b7d95f5ff816ccb64210e81969d80..841aed1ef52bf507cb3fe456724698971a9ef8ff 100644
+--- a/org/purpurmc/purpur/PurpurConfig.java
++++ b/org/purpurmc/purpur/PurpurConfig.java
+@@ -442,6 +442,12 @@ public class PurpurConfig {
+     public static boolean allowUnsafeEnchantCommand = false;
+     public static boolean replaceIncompatibleEnchants = false;
+     public static boolean clampEnchantLevels = true;
++    public static Map<net.minecraft.resources.ResourceKey<Enchantment>, Integer> enchantmentExtraLevels = new HashMap<>();
++
++    public static int getAnvilMaxLevel(net.minecraft.core.Holder<Enchantment> holder, int vanillaMax) {
++        return holder.unwrapKey().map(k -> enchantmentExtraLevels.getOrDefault(k, vanillaMax)).orElse(vanillaMax);
++    }
++
+     private static void enchantmentSettings() {
+         if (version < 30) {
+             boolean oldValue = getBoolean("settings.enchantment.allow-unsafe-enchants", false);
+@@ -466,6 +472,17 @@ public class PurpurConfig {
+         allowUnsafeEnchantCommand = getBoolean("settings.enchantment.allow-unsafe-enchant-command", allowUnsafeEnchantCommand);
+         replaceIncompatibleEnchants = getBoolean("settings.enchantment.anvil.replace-incompatible-enchants", replaceIncompatibleEnchants);
+         clampEnchantLevels = getBoolean("settings.enchantment.clamp-levels", clampEnchantLevels);
++
++        enchantmentExtraLevels = new HashMap<>();
++        getMap("settings.enchantment.anvil.extra-levels", Collections.emptyMap()).forEach((key, value) -> {
++            if (!(value instanceof Number num)) return;
++            Identifier id = Identifier.tryParse(key.contains(":") ? key : "minecraft:" + key);
++            if (id == null) {
++                log(Level.WARNING, "Invalid enchantment id in settings.enchantment.anvil.extra-levels: " + key);
++                return;
++            }
++            enchantmentExtraLevels.put(net.minecraft.resources.ResourceKey.create(Registries.ENCHANTMENT, id), num.intValue());
++        });
+     }
+ 
+     public static boolean endermanShortHeight = false;
