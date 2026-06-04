@@ -1,0 +1,59 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Suzuuki <kotick.pvp@gmail.com>
+Date: Thu, 4 Jun 2026 23:16:25 +0200
+Subject: [PATCH] Add config to fully disable the ender dragon fight and end
+ spawn platform
+
+
+diff --git a/net/minecraft/server/level/ServerLevel.java b/net/minecraft/server/level/ServerLevel.java
+index 3fb0c67855de020b219790f542d25975803d7720..501d07a32c3d0378ae76b35c1d85357fb940cc43 100644
+--- a/net/minecraft/server/level/ServerLevel.java
++++ b/net/minecraft/server/level/ServerLevel.java
+@@ -749,7 +749,7 @@ public class ServerLevel extends Level implements ServerEntityGetter, WorldGenLe
+             fixerUpper
+         );
+         this.structureManager = new StructureManager(this, this.serverLevelData.worldGenOptions(), this.structureCheck); // CraftBukkit
+-        if (this.dimension() == Level.END && this.dimensionTypeRegistration().is(BuiltinDimensionTypes.END) || env == org.bukkit.World.Environment.THE_END) { // CraftBukkit - Allow to create EnderDragonBattle in default and custom END
++        if ((this.dimension() == Level.END && this.dimensionTypeRegistration().is(BuiltinDimensionTypes.END) || env == org.bukkit.World.Environment.THE_END) && !this.purpurConfig.enderDragonDisableFight) { // CraftBukkit - Allow to create EnderDragonBattle in default and custom END // Purpur fork - allow fully disabling the ender dragon fight
+             this.dragonFight = new EndDragonFight(this, this.serverLevelData.worldGenOptions().seed(), this.serverLevelData.endDragonFightData()); // CraftBukkit
+         } else {
+             this.dragonFight = null;
+diff --git a/net/minecraft/world/level/block/EndPortalBlock.java b/net/minecraft/world/level/block/EndPortalBlock.java
+index 19590aa5af0eaf0f9bf76dc189ed67e67c692c77..97713aca0f417fb348bda9559bc22bdfeba815cb 100644
+--- a/net/minecraft/world/level/block/EndPortalBlock.java
++++ b/net/minecraft/world/level/block/EndPortalBlock.java
+@@ -91,7 +91,7 @@ public class EndPortalBlock extends BaseEntityBlock implements Portal {
+             float f1;
+             Set<Relative> set;
+             if (!flag) {
+-                EndPlatformFeature.createEndPlatform(level1, BlockPos.containing(bottomCenter).below(), true, entity); // CraftBukkit
++                if (!level1.purpurConfig.disableEndSpawnPlatformGeneration) EndPlatformFeature.createEndPlatform(level1, BlockPos.containing(bottomCenter).below(), true, entity); // CraftBukkit // Purpur fork - allow disabling end spawn platform generation
+                 f = Direction.WEST.toYRot();
+                 f1 = 0.0F;
+                 set = Relative.union(Relative.DELTA, Set.of(Relative.X_ROT));
+diff --git a/org/purpurmc/purpur/PurpurWorldConfig.java b/org/purpurmc/purpur/PurpurWorldConfig.java
+index 35749c9a231f0265542dfbbd0e903c61c7804eac..20e34ac3687ef2daba09b9590756c3d7e25707f5 100644
+--- a/org/purpurmc/purpur/PurpurWorldConfig.java
++++ b/org/purpurmc/purpur/PurpurWorldConfig.java
+@@ -1839,6 +1839,7 @@ public class PurpurWorldConfig {
+     public Boolean enderDragonMobGriefingOverride = null;
+     public boolean enderDragonTakeDamageFromWater = false;
+     public boolean enderDragonCanRideVehicles = false;
++    public boolean enderDragonDisableFight = false; // Purpur fork - fully disable the ender dragon fight (boss bar, dragon, exit portal, gateways, respawn)
+     private void enderDragonSettings() {
+         enderDragonRidable = getBoolean("mobs.ender_dragon.ridable", enderDragonRidable);
+         enderDragonRidableInWater = getBoolean("mobs.ender_dragon.ridable-in-water", enderDragonRidableInWater);
+@@ -1863,6 +1864,13 @@ public class PurpurWorldConfig {
+         enderDragonMobGriefingOverride = getBooleanOrDefault("mobs.ender_dragon.mob-griefing-override", enderDragonMobGriefingOverride);
+         enderDragonTakeDamageFromWater = getBoolean("mobs.ender_dragon.takes-damage-from-water", enderDragonTakeDamageFromWater);
+         enderDragonCanRideVehicles = getBoolean("mobs.ender_dragon.can-ride-vehicles", enderDragonCanRideVehicles);
++        enderDragonDisableFight = getBoolean("mobs.ender_dragon.disable-fight", enderDragonDisableFight); // Purpur fork - fully disable the ender dragon fight
++    }
++
++    // Purpur fork - allow disabling the obsidian spawn platform that is rebuilt at (100,50,0) on every End entry
++    public boolean disableEndSpawnPlatformGeneration = false;
++    private void endSpawnPlatformSettings() {
++        disableEndSpawnPlatformGeneration = getBoolean("gameplay-mechanics.disable-end-spawn-platform", disableEndSpawnPlatformGeneration);
+     }
+ 
+     public boolean endermanRidable = false;
