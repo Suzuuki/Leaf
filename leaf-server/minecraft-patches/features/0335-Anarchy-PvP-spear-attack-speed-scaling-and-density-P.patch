@@ -1,0 +1,37 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Suzuuki <kotick.pvp@gmail.com>
+Date: Tue, 16 Jun 2026 22:59:09 +0200
+Subject: [PATCH] Anarchy PvP: spear attack-speed scaling and density PvP-only
+
+
+diff --git a/net/minecraft/world/entity/player/Player.java b/net/minecraft/world/entity/player/Player.java
+index 6423160a3316b6135db57d2430ca8cc478232253..85c31906dfe6341b6ff504a734422bb220bba712 100644
+--- a/net/minecraft/world/entity/player/Player.java
++++ b/net/minecraft/world/entity/player/Player.java
+@@ -1369,7 +1369,10 @@ public abstract class Player extends Avatar implements ContainerUser {
+             DamageSource damageSource = this.createAttackSource(itemBySlot);
+             float f = this.getEnchantedDamage(target, damageAmount, damageSource) - damageAmount;
+             if (!this.isUsingItem() || this.getUsedItemHand().asEquipmentSlot() != slot) {
+-                f *= this.getAttackStrengthScale(0.5F);
++                // Purpur fork - spear: attack-speed bonus only scales vs players, and halved (PvE = full bonus, no speed scaling)
++                if (target instanceof Player) {
++                    f *= this.getAttackStrengthScale(0.5F) * 0.5F;
++                }
+                 damageAmount *= this.baseDamageScaleFactor();
+             }
+ 
+diff --git a/net/minecraft/world/item/MaceItem.java b/net/minecraft/world/item/MaceItem.java
+index c9e6cf2643333a49cda78bbe2956b0f8a9b8a996..08be4716df845daf70b2d2a96e85aad14468023a 100644
+--- a/net/minecraft/world/item/MaceItem.java
++++ b/net/minecraft/world/item/MaceItem.java
+@@ -119,8 +119,9 @@ public class MaceItem extends Item {
+                     d3 = 22.0 + d2 - 8.0;
+                 }
+ 
++                // Purpur fork - Density bonus only applies in PvP (against players); mobs get base mace smash only
+                 return livingEntity.level() instanceof ServerLevel serverLevel
+-                    ? (float)(d3 + EnchantmentHelper.modifyFallBasedDamage(serverLevel, livingEntity.getWeaponItem(), target, damageSource, 0.0F) * d2)
++                    ? (float)(d3 + (target instanceof Player ? EnchantmentHelper.modifyFallBasedDamage(serverLevel, livingEntity.getWeaponItem(), target, damageSource, 0.0F) * d2 : 0.0D))
+                     : (float)d3;
+             }
+         } else {
