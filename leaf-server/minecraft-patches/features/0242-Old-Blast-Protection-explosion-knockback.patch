@@ -25,7 +25,7 @@ index af01b77a586258c492b542536c54eddaa2b2a6f0..c45d4646104565a98a4c9deee60ca5d7
                              ? livingEntity.getAttributeValue(Attributes.EXPLOSION_KNOCKBACK_RESISTANCE)
                              : 0.0;
 -                        double d2 = entity instanceof Player && this.level.paperConfig().environment.disableExplosionKnockback ? 0 : (1.0 - d) * f1 * knockbackMultiplier * (1.0 - d1); // Paper
-+                        double d2 = entity instanceof Player && this.level.paperConfig().environment.disableExplosionKnockback ? 0 : getExplosionKnockback(entity, (1.0 - d) * f1 * knockbackMultiplier, d1); // Paper // Leaf - Old Blast Protection explosion knockback
++                        double d2 = entity instanceof Player && this.level.paperConfig().environment.disableExplosionKnockback ? 0 : (this.blockInteraction == net.minecraft.world.level.Explosion.BlockInteraction.TRIGGER_BLOCK ? (1.0 - d) * f1 * knockbackMultiplier : getExplosionKnockback(entity, (1.0 - d) * f1 * knockbackMultiplier, d1)); // Paper // Leaf - Old Blast Protection explosion knockback // Leaf - wind explosions (wind charge + mace wind burst) ignore blast protection knockback
                          Vec3 vec32 = vec31.scale(d2);
                          // CraftBukkit start - Call EntityKnockbackEvent
                          if (entity instanceof LivingEntity) {
