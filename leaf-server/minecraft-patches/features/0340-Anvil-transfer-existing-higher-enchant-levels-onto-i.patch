@@ -1,0 +1,24 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Suzuuki <kotick.pvp@gmail.com>
+Date: Sat, 20 Jun 2026 08:19:56 +0200
+Subject: [PATCH] Anvil: transfer existing higher enchant levels onto items
+
+
+diff --git a/net/minecraft/world/inventory/AnvilMenu.java b/net/minecraft/world/inventory/AnvilMenu.java
+index 687e716ce11c44e40ec36bc252cdfacf493ada19..d522333ff89d80e4b26b6d22b50889583d95f051 100644
+--- a/net/minecraft/world/inventory/AnvilMenu.java
++++ b/net/minecraft/world/inventory/AnvilMenu.java
+@@ -247,8 +247,11 @@ public class AnvilMenu extends ItemCombinerMenu {
+                         } else {
+                             flag = true;
+                             int anvilMaxLevel = org.purpurmc.purpur.PurpurConfig.getAnvilMaxLevel(holder, enchantment.getMaxLevel()); // Purpur fork - per-enchant extra anvil levels
+-                            if (!org.purpurmc.purpur.PurpurConfig.allowHigherEnchantsLevels && intValue > anvilMaxLevel && !this.bypassEnchantmentLevelRestriction) { // Paper - bypass anvil level restrictions // Purpur - Config to allow unsafe enchants // Purpur fork - per-enchant extra anvil levels
+-                                intValue = anvilMaxLevel; // Purpur fork - per-enchant extra anvil levels
++                            // Purpur fork - allow an already-existing higher level (e.g. bought books not in extra-levels) to transfer onto
++                            // the item, while still blocking anvil-upgrading two equal levels past the cap. Cap = max(anvilMax, highest input level).
++                            int effectiveMaxLevel = Math.max(anvilMaxLevel, Math.max(level, entry.getIntValue()));
++                            if (!org.purpurmc.purpur.PurpurConfig.allowHigherEnchantsLevels && intValue > effectiveMaxLevel && !this.bypassEnchantmentLevelRestriction) { // Paper - bypass anvil level restrictions // Purpur - Config to allow unsafe enchants // Purpur fork - per-enchant extra anvil levels
++                                intValue = effectiveMaxLevel; // Purpur fork - per-enchant extra anvil levels
+                             }
+ 
+                             mutable.set(holder, intValue);

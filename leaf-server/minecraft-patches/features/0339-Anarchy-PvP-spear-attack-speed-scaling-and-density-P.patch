@@ -5,10 +5,10 @@ Subject: [PATCH] Anarchy PvP: spear attack-speed scaling and density PvP-only
 
 
 diff --git a/net/minecraft/world/entity/player/Player.java b/net/minecraft/world/entity/player/Player.java
-index 6423160a3316b6135db57d2430ca8cc478232253..85c31906dfe6341b6ff504a734422bb220bba712 100644
+index c81a497cddc78d0de6761046ebc7113ef2b4ca70..939737c8dd080d895890209125404e0df978551d 100644
 --- a/net/minecraft/world/entity/player/Player.java
 +++ b/net/minecraft/world/entity/player/Player.java
-@@ -1369,7 +1369,10 @@ public abstract class Player extends Avatar implements ContainerUser {
+@@ -1368,7 +1368,10 @@ public abstract class Player extends Avatar implements ContainerUser {
              DamageSource damageSource = this.createAttackSource(itemBySlot);
              float f = this.getEnchantedDamage(target, damageAmount, damageSource) - damageAmount;
              if (!this.isUsingItem() || this.getUsedItemHand().asEquipmentSlot() != slot) {
