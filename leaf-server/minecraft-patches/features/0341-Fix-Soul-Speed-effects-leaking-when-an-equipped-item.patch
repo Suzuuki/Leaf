@@ -1,0 +1,85 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Suzuuki <kotick.pvp@gmail.com>
+Date: Wed, 8 Jul 2026 23:53:30 +0200
+Subject: [PATCH] Fix Soul Speed effects leaking when an equipped item breaks
+
+Fixes PaperMC/Paper#13958: the transient soul-speed movement_speed
+attribute modifier persisted forever after boots broke while rapidly
+swapping two pairs on soul sand.
+
+ItemStack#hurtAndBreak empties the broken stack in place before the
+break callback runs, so onEquippedItemBroken's stack-driven cleanup
+never saw the enchantments. Normally the next equipment-change tick
+healed this from the lastEquipmentItems snapshot, but soul speed's
+change_item_damage is itself a location_changed effect (MC-274447):
+when the freshly equipped pair broke inside collectEquipmentChanges'
+runLocationChangedEffects call, the emptied stack was snapshotted and
+the cleanup could never run.
+
+Now onEquippedItemBroken drains the slot's active location-dependent
+effect bookkeeping directly, and collectEquipmentChanges strips the
+just-added attribute modifiers with a pre-break copy when the item
+breaks during its own location_changed effects.
+
+Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>
+
+diff --git a/net/minecraft/world/entity/LivingEntity.java b/net/minecraft/world/entity/LivingEntity.java
+index 3b83547dcfa6286b4e03b41583429a50a0a3744e..c72a46af6f3b2ba5470998ab6a58f3c5d73d6703 100644
+--- a/net/minecraft/world/entity/LivingEntity.java
++++ b/net/minecraft/world/entity/LivingEntity.java
+@@ -3760,7 +3760,18 @@ public abstract class LivingEntity extends Entity implements Attackable, Waypoin
+                         }
+                     });
+                     if (this.level() instanceof ServerLevel serverLevel) {
++                        // Purpur fork start - fix enchantment location-based effects leaking when an equipped item breaks (PaperMC/Paper#13958)
++                        // Soul Speed's change_item_damage is itself a location_changed effect (MC-274447), so the freshly
++                        // equipped item can break in place inside this call. handleEquipmentChanges then snapshots the
++                        // already-emptied stack into lastEquipmentItems, which defeats the usual next-tick cleanup that
++                        // relies on the previous snapshot — strip the just-added attribute modifiers and enchantment
++                        // effects immediately, using a copy taken before the effects ran.
++                        final ItemStack preEffectsCopy = itemBySlot.copy();
+                         EnchantmentHelper.runLocationChangedEffects(serverLevel, itemBySlot, this, equipmentSlot1);
++                        if (itemBySlot.isEmpty()) {
++                            this.stopLocationBasedEffects(preEffectsCopy, equipmentSlot1, this.attributes);
++                        }
++                        // Purpur fork end - fix enchantment location-based effects leaking when an equipped item breaks (PaperMC/Paper#13958)
+                     }
+                 }
+             }
+@@ -4952,6 +4963,7 @@ public abstract class LivingEntity extends Entity implements Attackable, Waypoin
+     public void onEquippedItemBroken(Item item, EquipmentSlot slot) {
+         this.level().broadcastEntityEvent(this, entityEventForEquipmentBreak(slot));
+         this.stopLocationBasedEffects(this.getItemBySlot(slot), slot, this.attributes);
++        this.stopActiveLocationDependentEffects(slot); // Purpur fork - fix enchantment location-based effects leaking when an equipped item breaks (PaperMC/Paper#13958)
+     }
+ 
+     private void stopLocationBasedEffects(ItemStack stack, EquipmentSlot slot, AttributeMap attributeMap) {
+@@ -4964,6 +4976,28 @@ public abstract class LivingEntity extends Entity implements Attackable, Waypoin
+         EnchantmentHelper.stopLocationBasedEffects(stack, this, slot);
+     }
+ 
++    // Purpur fork start - fix enchantment location-based effects leaking when an equipped item breaks (PaperMC/Paper#13958)
++    // ItemStack#hurtAndBreak empties the broken stack in place before the break callback runs, so the
++    // stack-driven cleanup above iterates an empty stack and never deactivates the enchantment's active
++    // location-based effects (e.g. Soul Speed's transient movement_speed modifier). Drain the active
++    // effect bookkeeping for the slot directly so onDeactivated always runs.
++    private void stopActiveLocationDependentEffects(EquipmentSlot slot) {
++        final Reference2ObjectMap<Enchantment, Set<EnchantmentLocationBasedEffect>> active = this.activeLocationDependentEnchantments.get(slot);
++        if (active == null || active.isEmpty()) {
++            return;
++        }
++        final net.minecraft.world.item.enchantment.EnchantedItemInUse itemInUse = new net.minecraft.world.item.enchantment.EnchantedItemInUse(ItemStack.EMPTY, slot, this);
++        for (final Set<EnchantmentLocationBasedEffect> effects : active.values()) {
++            for (final EnchantmentLocationBasedEffect effect : effects) {
++                // the enchantment level of a broken (now empty) stack is unknown; onDeactivated
++                // implementations remove attribute modifiers by fixed id, so the level is unused there
++                effect.onDeactivated(itemInUse, this, this.position(), 1);
++            }
++        }
++        active.clear();
++    }
++    // Purpur fork end - fix enchantment location-based effects leaking when an equipped item breaks (PaperMC/Paper#13958)
++
+     public final boolean canEquipWithDispenser(ItemStack stack) {
+         if (this.isAlive() && !this.isSpectator()) {
+             Equippable equippable = stack.get(DataComponents.EQUIPPABLE);
